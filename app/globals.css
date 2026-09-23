@@ -1,0 +1,93 @@
+@import url('https://fonts.googleapis.com/css2?family=Arvo:wght@400;700&family=Merriweather:wght@300;400;700;900&family=Poppins:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  font-family: 'Poppins', sans-serif;
+  background: #ffffff;
+  min-height: 100vh;
+  color: #1f2937;
+  line-height: 1.6;
+}
+
+/* Mobile-optimized touch interactions */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Smooth scrolling for mobile */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Mobile-friendly form inputs */
+@media (max-width: 768px) {
+  input, textarea, select {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+}
+
+/* Custom crop styling for mobile */
+.ReactCrop {
+  max-width: 100%;
+}
+
+.ReactCrop__crop-selection {
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 9999em rgba(0, 0, 0, 0.5);
+}
+
+.ReactCrop__drag-handle {
+  width: 12px;
+  height: 12px;
+  background: #ffffff;
+  border: 2px solid #01411C;
+  border-radius: 2px;
+}
+
+@media (max-width: 768px) {
+  .ReactCrop__drag-handle {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+/* Slider styling for photo cropper */
+.slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #01411C;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #01411C;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
