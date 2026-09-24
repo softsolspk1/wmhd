@@ -60,7 +60,7 @@ const PosterGenerator: React.FC = () => {
 
           {/* Trust signals */}
           <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-            {["✨ Free & instant", "🖼️ 1080×1080 HD", "📲 Instagram · WhatsApp · LinkedIn"].map(
+            {["✨ Free & instant", "🖼️ 1754×1240 HD", "📲 Instagram · WhatsApp · LinkedIn"].map(
               (label) => (
                 <span
                   key={label}

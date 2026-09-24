@@ -134,7 +134,7 @@ const PosterBuilder: React.FC = () => {
     }
 
     setIsDownloading(true);
-    const loadingToast = toast.loading("Generating your 1200×900 banner...");
+    const loadingToast = toast.loading("Generating your 1754×1240 banner...");
 
     try {
       // Ensure canvas is cleanly drawn
@@ -426,18 +426,18 @@ const PosterBuilder: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-2 text-xs text-slate-400">
                   <span className="bg-slate-800 px-2.5 py-1 rounded-full font-mono text-[11px]">
-                    1200 × 900 px
+                    1754 × 1240 px
                   </span>
-                  <span className="hidden sm:inline-block">4:3 Landscape</span>
+                  <span className="hidden sm:inline-block">Landscape</span>
                 </div>
               </div>
 
               {/* Canvas Container */}
-              <div className="relative w-full aspect-[4/3] bg-slate-950 rounded-2xl overflow-hidden shadow-inner flex items-center justify-center border border-slate-800">
+              <div className="relative w-full aspect-[1754/1240] bg-slate-950 rounded-2xl overflow-hidden shadow-inner flex items-center justify-center border border-slate-800">
                 <canvas
                   ref={canvasRef}
-                  width={1200}
-                  height={900}
+                  width={1754}
+                  height={1240}
                   className="w-full h-full object-contain block select-none"
                 />
               </div>
