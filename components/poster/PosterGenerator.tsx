@@ -86,7 +86,7 @@ const PosterGenerator: React.FC = () => {
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-slate-400 text-center sm:text-left">
           <div>
             <p className="font-semibold text-emerald-400">
-              Hirani's Pharmaceuticals (Pvt) Ltd
+              Hiranis Pharmaceuticals (Pvt) Ltd
             </p>
             <p className="font-semibold text-slate-300 mt-0.5">
               World Mental Health Day 2026 Official Banner Generator

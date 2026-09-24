@@ -29,8 +29,8 @@ interface FormData {
 
 const SAMPLE_DATA: FormData = {
   name: "Muzamil Patel",
-  designation: "Business Unit Head",
-  organization: "Hirani's Pharmaceuticals (Pvt) Ltd",
+  designation: "General Manager",
+  organization: "Hiranis Pharmaceuticals (Pvt) Ltd",
   message: PRESET_MESSAGES[0],
 };
 
@@ -286,7 +286,7 @@ const PosterBuilder: React.FC = () => {
                 type="text"
                 value={formData.designation}
                 onChange={(e) => handleInputChange("designation", e.target.value)}
-                placeholder="e.g. Business Unit Head / Clinical Psychologist"
+                placeholder="e.g. General Manager / Clinical Psychologist"
                 maxLength={55}
                 className="w-full px-4 py-3 rounded-xl border border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all font-medium text-sm sm:text-base"
               />
@@ -302,7 +302,7 @@ const PosterBuilder: React.FC = () => {
                 type="text"
                 value={formData.organization}
                 onChange={(e) => handleInputChange("organization", e.target.value)}
-                placeholder="e.g. Hirani's Pharmaceuticals (Pvt) Ltd"
+                placeholder="e.g. Hiranis Pharmaceuticals (Pvt) Ltd"
                 maxLength={65}
                 className="w-full px-4 py-3 rounded-xl border border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all font-medium text-sm sm:text-base"
               />
@@ -444,7 +444,7 @@ const PosterBuilder: React.FC = () => {
 
               <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
                 <p>💡 Live auto-updates as you type and crop</p>
-                <p className="text-emerald-400 font-medium">Courtesy by Hirani's Pharmaceuticals (Pvt) Ltd</p>
+                <p className="text-emerald-400 font-medium">Courtesy by Hiranis Pharmaceuticals (Pvt) Ltd</p>
               </div>
             </div>
           </div>
