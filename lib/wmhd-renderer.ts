@@ -47,15 +47,22 @@ function drawFittedText(
   return fontSize;
 }
 
-function wrapTextToLines(
+/**
+ * Wraps text to fit both the width and the height of a box, shrinking the font
+ * until the wrapped paragraph fits — rather than capping at a fixed line count
+ * and truncating early. Only truncates the final line if even the minimum font
+ * size can't fit everything.
+ */
+function fitTextBlock(
   ctx: CanvasRenderingContext2D,
   text: string,
   maxWidth: number,
+  maxHeight: number,
   initialFontSize: number,
   fontWeight: string,
   fontFamily: string,
-  maxLines: number,
-  minFontSize = 16
+  minFontSize: number,
+  lineHeightRatio = 1.32
 ): { lines: string[]; fontSize: number; lineHeight: number } {
   const words = text.trim().split(/\s+/).filter(Boolean);
 
@@ -65,10 +72,10 @@ function wrapTextToLines(
     let current = "";
     for (const word of words) {
       const candidate = current ? `${current} ${word}` : word;
-      if (ctx.measureText(candidate).width <= maxWidth) {
+      if (!current || ctx.measureText(candidate).width <= maxWidth) {
         current = candidate;
       } else {
-        if (current) lines.push(current);
+        lines.push(current);
         current = word;
       }
     }
@@ -78,12 +85,17 @@ function wrapTextToLines(
 
   let fontSize = initialFontSize;
   let lines = buildLines(fontSize);
-  while (lines.length > maxLines && fontSize > minFontSize) {
+  let lineHeight = Math.round(fontSize * lineHeightRatio);
+
+  while (lines.length * lineHeight > maxHeight && fontSize > minFontSize) {
     fontSize -= 1;
     lines = buildLines(fontSize);
+    lineHeight = Math.round(fontSize * lineHeightRatio);
   }
-  if (lines.length > maxLines) {
-    lines = lines.slice(0, maxLines);
+
+  const maxLinesAllowed = Math.max(1, Math.floor(maxHeight / lineHeight));
+  if (lines.length > maxLinesAllowed) {
+    lines = lines.slice(0, maxLinesAllowed);
     const lastIndex = lines.length - 1;
     ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
     let lastLine = lines[lastIndex];
@@ -92,7 +104,7 @@ function wrapTextToLines(
     }
     lines[lastIndex] = lastLine.trimEnd() + "…";
   }
-  return { lines, fontSize, lineHeight: Math.round(fontSize * 1.32) };
+  return { lines, fontSize, lineHeight };
 }
 
 function roundRectPath(
@@ -293,11 +305,14 @@ export async function renderWMHDBanner(canvas: HTMLCanvasElement, data: WMHDBann
   ctx.restore();
 
   // ---- 5. Quote — centered inside the speech bubble cut into the template ----
-  const bubbleTextX0 = WIDTH * 0.335;
-  const bubbleTextX1 = WIDTH * 0.775;
-  const bubbleTextY0 = HEIGHT * 0.285;
-  const bubbleTextY1 = HEIGHT * 0.545;
+  // Box is inset from the bubble's measured white region to clear its rounded
+  // corners and the pointer tail baked into the template artwork.
+  const bubbleTextX0 = WIDTH * 0.365;
+  const bubbleTextX1 = WIDTH * 0.765;
+  const bubbleTextY0 = HEIGHT * 0.3;
+  const bubbleTextY1 = HEIGHT * 0.565;
   const bubbleTextW = bubbleTextX1 - bubbleTextX0;
+  const bubbleTextH = bubbleTextY1 - bubbleTextY0;
   const bubbleCx = bubbleTextX0 + bubbleTextW / 2;
 
   const messageText = data.message.trim() || "Mental health is as important as physical health.";
@@ -305,19 +320,21 @@ export async function renderWMHDBanner(canvas: HTMLCanvasElement, data: WMHDBann
   ctx.textAlign = "center";
   ctx.textBaseline = "alphabetic";
 
-  const quoteWrap = wrapTextToLines(
+  // Font size auto-fits to the message length: shrinks until the whole quote
+  // fits inside the bubble box, both by line width and by total block height.
+  const quoteWrap = fitTextBlock(
     ctx,
     `"${messageText}"`,
     bubbleTextW,
-    36 * S,
+    bubbleTextH,
+    40 * S,
     "600",
     fontFamily,
-    4,
-    20 * S
+    15 * S
   );
   const totalTextH = quoteWrap.lines.length * quoteWrap.lineHeight;
-  const bubbleTextH = bubbleTextY1 - bubbleTextY0;
-  let qy = bubbleTextY0 + bubbleTextH / 2 - totalTextH / 2 + quoteWrap.fontSize * 0.8;
+  let qy =
+    bubbleTextY0 + (bubbleTextH - totalTextH) / 2 + quoteWrap.fontSize * 0.78;
   ctx.fillStyle = "#1f2430";
   ctx.font = `600 ${quoteWrap.fontSize}px ${fontFamily}`;
   for (const line of quoteWrap.lines) {

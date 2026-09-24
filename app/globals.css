@@ -26,6 +26,10 @@ body {
   min-height: 100vh;
   color: #1f2937;
   line-height: 1.6;
+  /* Keeps content clear of the iPhone notch / home indicator in landscape */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 /* Mobile-optimized touch interactions */

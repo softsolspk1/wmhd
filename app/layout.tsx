@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
@@ -11,6 +11,12 @@ export const metadata: Metadata = {
   title: "World Mental Health Day 2026 - Official Banner Generator",
   description:
     "Everyone deserves good mental health. Personalize and download your official World Mental Health Day 2026 banner — 10th October 2026.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

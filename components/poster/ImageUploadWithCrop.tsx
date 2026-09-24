@@ -29,6 +29,8 @@ export const ImageUploadWithCrop: React.FC<ImageUploadWithCropProps> = ({
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null);
+  const [frameSize, setFrameSize] = useState(300);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -36,6 +38,67 @@ export const ImageUploadWithCrop: React.FC<ImageUploadWithCropProps> = ({
 
   // Target aspect ratio matches the square banner photo frame
   const targetAspect = 1;
+
+  // The crop frame is a square sized by CSS as `min(300px, 75vw)` — mirror
+  // that here so the image can be sized to always fully cover it (no gaps).
+  useEffect(() => {
+    if (!isCropModalOpen) return;
+    const updateFrameSize = () => setFrameSize(Math.min(300, window.innerWidth * 0.75));
+    updateFrameSize();
+    window.addEventListener("resize", updateFrameSize);
+    window.addEventListener("orientationchange", updateFrameSize);
+    return () => {
+      window.removeEventListener("resize", updateFrameSize);
+      window.removeEventListener("orientationchange", updateFrameSize);
+    };
+  }, [isCropModalOpen]);
+
+  // Lock background scroll while the crop modal is open (iOS Safari doesn't
+  // respect `overflow: hidden` on a scrolled ancestor otherwise)
+  useEffect(() => {
+    if (!isCropModalOpen) return;
+    const original = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = original;
+    };
+  }, [isCropModalOpen]);
+
+  // Base (zoom = 1) display size that fully covers the square crop frame,
+  // regardless of the source photo's aspect ratio — this guarantees the
+  // frame never shows empty/white space around the photo.
+  const baseScale = naturalSize
+    ? Math.max(frameSize / naturalSize.w, frameSize / naturalSize.h)
+    : 1;
+  const dispWidth = naturalSize ? naturalSize.w * baseScale * zoom : undefined;
+  const dispHeight = naturalSize ? naturalSize.h * baseScale * zoom : undefined;
+
+  const clampPan = useCallback(
+    (p: { x: number; y: number }, z: number) => {
+      if (!naturalSize) return p;
+      const scale = Math.max(frameSize / naturalSize.w, frameSize / naturalSize.h) * z;
+      const w = naturalSize.w * scale;
+      const h = naturalSize.h * scale;
+      const maxX = Math.max(0, (w - frameSize) / 2);
+      const maxY = Math.max(0, (h - frameSize) / 2);
+      return {
+        x: Math.min(maxX, Math.max(-maxX, p.x)),
+        y: Math.min(maxY, Math.max(-maxY, p.y)),
+      };
+    },
+    [naturalSize, frameSize]
+  );
+
+  const handleImageLoad = () => {
+    if (!imgRef.current) return;
+    setNaturalSize({ w: imgRef.current.naturalWidth, h: imgRef.current.naturalHeight });
+    setPan({ x: 0, y: 0 });
+  };
+
+  const handleZoomChange = (z: number) => {
+    setZoom(z);
+    setPan((prev) => clampPan(prev, z));
+  };
 
   const handleFileSelect = (file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -80,12 +143,17 @@ export const ImageUploadWithCrop: React.FC<ImageUploadWithCropProps> = ({
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {
       if (!isDragging) return;
-      setPan({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y,
-      });
+      setPan(
+        clampPan(
+          {
+            x: e.clientX - dragStart.x,
+            y: e.clientY - dragStart.y,
+          },
+          zoom
+        )
+      );
     },
-    [isDragging, dragStart]
+    [isDragging, dragStart, clampPan, zoom]
   );
 
   const handleMouseUp = useCallback(() => {
@@ -105,12 +173,17 @@ export const ImageUploadWithCrop: React.FC<ImageUploadWithCropProps> = ({
   const handleTouchMove = useCallback(
     (e: TouchEvent) => {
       if (!isDragging || e.touches.length !== 1) return;
-      setPan({
-        x: e.touches[0].clientX - dragStart.x,
-        y: e.touches[0].clientY - dragStart.y,
-      });
+      setPan(
+        clampPan(
+          {
+            x: e.touches[0].clientX - dragStart.x,
+            y: e.touches[0].clientY - dragStart.y,
+          },
+          zoom
+        )
+      );
     },
-    [isDragging, dragStart]
+    [isDragging, dragStart, clampPan, zoom]
   );
 
   const handleTouchEnd = useCallback(() => {
@@ -152,13 +225,29 @@ export const ImageUploadWithCrop: React.FC<ImageUploadWithCropProps> = ({
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
 
-    // Calculate mapping from displayed image coordinates to source image natural coordinates
-    const scaleToNatural = imgRef.current.naturalWidth / imgBox.width;
+    // Fill with white first so any (in practice, near-zero) rounding gap at
+    // the edges matches the banner's white card background instead of
+    // rendering as a transparent/checkered seam.
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, exportWidth, exportHeight);
 
-    const sourceCropX = (cropBox.left - imgBox.left) * scaleToNatural;
-    const sourceCropY = (cropBox.top - imgBox.top) * scaleToNatural;
-    const sourceCropW = cropBox.width * scaleToNatural;
-    const sourceCropH = cropBox.height * scaleToNatural;
+    // Calculate mapping from displayed image coordinates to source image natural coordinates
+    const naturalW = imgRef.current.naturalWidth;
+    const naturalH = imgRef.current.naturalHeight;
+    const scaleToNatural = naturalW / imgBox.width;
+
+    let sourceCropX = (cropBox.left - imgBox.left) * scaleToNatural;
+    let sourceCropY = (cropBox.top - imgBox.top) * scaleToNatural;
+    let sourceCropW = cropBox.width * scaleToNatural;
+    let sourceCropH = cropBox.height * scaleToNatural;
+
+    // Clamp defensively to the source image's actual bounds — the frame is
+    // sized to always be covered by the image, but this guards against any
+    // sub-pixel rounding at the edges.
+    sourceCropX = Math.max(0, Math.min(sourceCropX, naturalW));
+    sourceCropY = Math.max(0, Math.min(sourceCropY, naturalH));
+    sourceCropW = Math.min(sourceCropW, naturalW - sourceCropX);
+    sourceCropH = Math.min(sourceCropH, naturalH - sourceCropY);
 
     const originalImg = new Image();
     originalImg.onload = () => {
@@ -312,6 +401,7 @@ export const ImageUploadWithCrop: React.FC<ImageUploadWithCropProps> = ({
                 <div
                   onMouseDown={handleMouseDown}
                   onTouchStart={handleTouchStart}
+                  style={{ touchAction: 'none' }}
                   className="absolute inset-0 cursor-grab active:cursor-grabbing flex items-center justify-center"
                 >
                   <img
@@ -319,12 +409,16 @@ export const ImageUploadWithCrop: React.FC<ImageUploadWithCropProps> = ({
                     src={imageSrc}
                     alt="Source"
                     draggable={false}
+                    onLoad={handleImageLoad}
                     style={{
-                      transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-                      transition: isDragging ? 'none' : 'transform 0.1s ease-out',
-                      maxWidth: '85%',
-                      maxHeight: '85%',
-                      objectFit: 'contain',
+                      width: dispWidth ? `${dispWidth}px` : '100%',
+                      height: dispHeight ? `${dispHeight}px` : '100%',
+                      transform: `translate(${pan.x}px, ${pan.y}px)`,
+                      transition: isDragging
+                        ? 'none'
+                        : 'transform 0.1s ease-out, width 0.1s ease-out, height 0.1s ease-out',
+                      objectFit: 'cover',
+                      maxWidth: 'none',
                     }}
                   />
                 </div>
@@ -336,11 +430,11 @@ export const ImageUploadWithCrop: React.FC<ImageUploadWithCropProps> = ({
                   <MagnifyingGlassMinusIcon className="w-5 h-5 text-gray-400" />
                   <input
                     type="range"
-                    min="0.6"
+                    min="1"
                     max="3.0"
                     step="0.05"
                     value={zoom}
-                    onChange={(e) => setZoom(parseFloat(e.target.value))}
+                    onChange={(e) => handleZoomChange(parseFloat(e.target.value))}
                     className="flex-1 accent-emerald-500 cursor-pointer h-2 bg-gray-700 rounded-lg"
                   />
                   <MagnifyingGlassPlusIcon className="w-5 h-5 text-gray-400" />

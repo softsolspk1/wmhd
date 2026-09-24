@@ -150,14 +150,47 @@ const PosterBuilder: React.FC = () => {
         .slice(0, 30);
       const filename = `${cleanName || "WMHD"}_2026_${Date.now()}`;
 
-      const link = document.createElement("a");
-      link.download = `${filename}.jpg`;
-      link.href = dataUrl;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // iOS Safari ignores the `download` attribute and just navigates to the
+      // image, so hand it to the native share sheet (Save Image) instead.
+      const isIOS =
+        typeof navigator !== "undefined" &&
+        (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+          (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
 
-      toast.success("Banner downloaded successfully! 🎉", { id: loadingToast });
+      if (isIOS && typeof navigator.share === "function") {
+        try {
+          const blob = await (await fetch(dataUrl)).blob();
+          const file = new File([blob], `${filename}.jpg`, { type: "image/jpeg" });
+          if (navigator.canShare && !navigator.canShare({ files: [file] })) {
+            throw new Error("File sharing not supported");
+          }
+          await navigator.share({
+            files: [file],
+            title: "World Mental Health Day 2026 Banner",
+          });
+          toast.success("Banner ready — save it from the share sheet! 🎉", {
+            id: loadingToast,
+          });
+        } catch (shareErr) {
+          if ((shareErr as { name?: string })?.name === "AbortError") {
+            toast.dismiss(loadingToast);
+          } else {
+            window.open(dataUrl, "_blank");
+            toast.success("Opened in a new tab — tap and hold the image to save it. 🎉", {
+              id: loadingToast,
+            });
+          }
+        }
+      } else {
+        const link = document.createElement("a");
+        link.download = `${filename}.jpg`;
+        link.href = dataUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast.success("Banner downloaded successfully! 🎉", { id: loadingToast });
+      }
 
       // 2. Upload to Cloudinary in the background
       toast.loading("Saving banner to Cloudinary...", { id: "cloud-upload" });
@@ -296,7 +329,7 @@ const PosterBuilder: React.FC = () => {
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
                 <BuildingOffice2Icon className="w-4 h-4 text-indigo-600" />
-                Organization / Institution / Company
+                Organization / Institution / Hospital
               </label>
               <input
                 type="text"
