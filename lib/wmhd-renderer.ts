@@ -146,6 +146,86 @@ function speechBubblePath(
   ctx.closePath();
 }
 
+/** Sparse starfield dots — subtle nod to the 2026 "global voices" theme, deterministic so re-renders are stable. */
+function drawStarfield(ctx: CanvasRenderingContext2D, w: number, h: number, count: number) {
+  let seed = 42;
+  const rand = () => {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  };
+  ctx.save();
+  for (let i = 0; i < count; i++) {
+    const x = rand() * w;
+    const y = rand() * h * 0.62;
+    const r = rand() * 1.1 + 0.3;
+    ctx.globalAlpha = rand() * 0.5 + 0.15;
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/** Thin gold corner brackets that frame the whole canvas for a certificate-like, premium finish. */
+function drawCornerBrackets(ctx: CanvasRenderingContext2D, w: number, h: number, color: string) {
+  const margin = 18;
+  const len = 46;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+  ctx.lineCap = "round";
+  const corners: [number, number, number, number][] = [
+    [margin, margin, 1, 1],
+    [w - margin, margin, -1, 1],
+    [margin, h - margin, 1, -1],
+    [w - margin, h - margin, -1, -1],
+  ];
+  for (const [cx, cy, dx, dy] of corners) {
+    ctx.beginPath();
+    ctx.moveTo(cx, cy + len * dy);
+    ctx.lineTo(cx, cy);
+    ctx.lineTo(cx + len * dx, cy);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/** Small circular date seal ("OCT 10") rendered as an overlapping badge, like an official stamp. */
+function drawDateSeal(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, fontFamily: string) {
+  ctx.save();
+  ctx.shadowColor = "rgba(20, 8, 40, 0.5)";
+  ctx.shadowBlur = 14;
+  ctx.shadowOffsetY = 4;
+  const grad = ctx.createLinearGradient(cx, cy - r, cx, cy + r);
+  grad.addColorStop(0, "#2a2e7d");
+  grad.addColorStop(1, "#1b1e57");
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  ctx.save();
+  ctx.strokeStyle = "#f5a623";
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r - 4, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `700 ${r * 0.34}px ${fontFamily}`;
+  ctx.fillText("OCT", cx, cy - r * 0.22);
+  ctx.font = `800 ${r * 0.56}px ${fontFamily}`;
+  ctx.fillStyle = "#ffdd85";
+  ctx.fillText("10", cx, cy + r * 0.24);
+  ctx.restore();
+}
+
 function drawPlaceholderAvatar(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
   ctx.save();
   roundRectPath(ctx, x, y, w, h, 6);
@@ -221,9 +301,14 @@ export async function renderWMHDBanner(canvas: HTMLCanvasElement, data: WMHDBann
     data.imageData ? loadImage(data.imageData).catch(() => null) : Promise.resolve(null),
   ]);
 
-  // ---- 1. Background: purple radial glow over a solid dark-purple base ----
-  ctx.fillStyle = PURPLE_DARK;
+  // ---- 1. Background: deep navy-to-purple diagonal base + radial glow + starfield texture ----
+  const baseGrad = ctx.createLinearGradient(0, 0, WIDTH, HEIGHT);
+  baseGrad.addColorStop(0, "#1f1147");
+  baseGrad.addColorStop(0.55, PURPLE_DARK);
+  baseGrad.addColorStop(1, "#3a1a5c");
+  ctx.fillStyle = baseGrad;
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
   const glow = ctx.createRadialGradient(
     WIDTH * 0.5,
     HEIGHT * 0.38,
@@ -233,14 +318,22 @@ export async function renderWMHDBanner(canvas: HTMLCanvasElement, data: WMHDBann
     WIDTH * 0.62
   );
   glow.addColorStop(0, PURPLE_LIGHT);
-  glow.addColorStop(1, PURPLE_DARK);
+  glow.addColorStop(1, "rgba(93,42,134,0)");
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+  drawStarfield(ctx, WIDTH, HEIGHT, 140);
 
   // ---- 2. Footer white band ----
   const footerY0 = HEIGHT * 0.799;
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, footerY0, WIDTH, HEIGHT - footerY0);
+  const footerLine = ctx.createLinearGradient(0, footerY0, WIDTH, footerY0);
+  footerLine.addColorStop(0, "rgba(245,166,35,0)");
+  footerLine.addColorStop(0.5, GOLD_ACCENT);
+  footerLine.addColorStop(1, "rgba(245,166,35,0)");
+  ctx.fillStyle = footerLine;
+  ctx.fillRect(0, footerY0 - 3, WIDTH, 3);
 
   // ---- 3. Header pill ----
   const pillX0 = WIDTH * 0.112;
@@ -267,8 +360,20 @@ export async function renderWMHDBanner(canvas: HTMLCanvasElement, data: WMHDBann
   ctx.textBaseline = "middle";
   ctx.fillStyle = "#1a1a1a";
   const titleText = "WORLD MENTAL HEALTH DAY 2026";
-  drawFittedText(ctx, titleText, WIDTH / 2, pillY0 + pillH / 2 + 3, pillW - 80, 46, "800", fontFamily, 22);
+  drawFittedText(ctx, titleText, WIDTH / 2, pillY0 + pillH / 2 + 3, pillW - 140, 46, "800", fontFamily, 22);
   ctx.restore();
+
+  // Official 2026 campaign tagline ribbon, centered just beneath the header pill
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#ffdd85";
+  ctx.font = `600 italic 15px ${fontFamily}`;
+  ctx.fillText("“Real Voices, Real Change” • #WorldMentalHealthDay2026", WIDTH / 2, pillY1 + 14);
+  ctx.restore();
+
+  // Date seal — small official-looking stamp overlapping the header pill's right edge
+  drawDateSeal(ctx, pillX1 - 6, pillY1 - 4, HEIGHT * 0.052, fontFamily);
 
   // ---- 4. Photo box + name/designation badges ----
   const boxX0 = WIDTH * 0.09;
@@ -281,13 +386,18 @@ export async function renderWMHDBanner(canvas: HTMLCanvasElement, data: WMHDBann
   const desigY0 = nameY1;
   const desigY1 = HEIGHT * 0.601;
 
-  // Photo frame (white border + soft shadow)
+  // Photo frame (white border + thin gold ring + soft shadow)
   ctx.save();
-  ctx.shadowColor = "rgba(20, 8, 40, 0.4)";
-  ctx.shadowBlur = 18;
+  ctx.shadowColor = "rgba(20, 8, 40, 0.45)";
+  ctx.shadowBlur = 20;
   ctx.shadowOffsetY = 8;
   ctx.fillStyle = "#ffffff";
-  ctx.fillRect(boxX0 - 6, photoY0 - 6, boxW + 12, photoY1 - photoY0 + 12);
+  ctx.fillRect(boxX0 - 7, photoY0 - 7, boxW + 14, photoY1 - photoY0 + 14);
+  ctx.restore();
+  ctx.save();
+  ctx.strokeStyle = GOLD_ACCENT;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(boxX0 - 4, photoY0 - 4, boxW + 8, photoY1 - photoY0 + 8);
   ctx.restore();
 
   if (userImg) {
@@ -296,8 +406,11 @@ export async function renderWMHDBanner(canvas: HTMLCanvasElement, data: WMHDBann
     drawPlaceholderAvatar(ctx, boxX0, photoY0, boxW, photoY1 - photoY0);
   }
 
-  // Name badge (yellow)
-  ctx.fillStyle = YELLOW_BOTTOM;
+  // Name badge (yellow gradient)
+  const nameGrad = ctx.createLinearGradient(boxX0, nameY0, boxX0, nameY1);
+  nameGrad.addColorStop(0, YELLOW_TOP);
+  nameGrad.addColorStop(1, YELLOW_BOTTOM);
+  ctx.fillStyle = nameGrad;
   ctx.fillRect(boxX0, nameY0, boxW, nameY1 - nameY0);
   ctx.save();
   ctx.textAlign = "center";
@@ -307,8 +420,11 @@ export async function renderWMHDBanner(canvas: HTMLCanvasElement, data: WMHDBann
   drawFittedText(ctx, nameText, boxX0 + boxW / 2, nameY0 + (nameY1 - nameY0) / 2 + 2, boxW - 24, 24, "800", fontFamily, 13);
   ctx.restore();
 
-  // Designation badge (navy) — up to two lines: designation + organization
-  ctx.fillStyle = NAVY;
+  // Designation badge (navy gradient) — up to two lines: designation + organization
+  const desigGrad = ctx.createLinearGradient(boxX0, desigY0, boxX0, desigY1);
+  desigGrad.addColorStop(0, "#33368f");
+  desigGrad.addColorStop(1, NAVY);
+  ctx.fillStyle = desigGrad;
   ctx.fillRect(boxX0, desigY0, boxW, desigY1 - desigY0);
   ctx.save();
   ctx.textAlign = "center";
@@ -341,6 +457,13 @@ export async function renderWMHDBanner(canvas: HTMLCanvasElement, data: WMHDBann
   ctx.fillStyle = "#ffffff";
   speechBubblePath(ctx, bubbleX0, bubbleY0, bubbleW, bubbleH, 42);
   ctx.fill();
+  ctx.restore();
+
+  ctx.save();
+  ctx.strokeStyle = "rgba(245, 166, 35, 0.55)";
+  ctx.lineWidth = 1.5;
+  speechBubblePath(ctx, bubbleX0, bubbleY0, bubbleW, bubbleH, 42);
+  ctx.stroke();
   ctx.restore();
 
   // Decorative gold swoosh accents (top-left & bottom-right corners of the bubble)
@@ -398,4 +521,7 @@ export async function renderWMHDBanner(canvas: HTMLCanvasElement, data: WMHDBann
   drawAsset(wmhdLogo, 0.015, 0.615, 0.285, 0.985);
   drawAsset(ovalBadge, 0.285, 0.645, 0.755, 0.985);
   drawAsset(hiranisLogo, 0.75, 0.85, 0.975, 0.955);
+
+  // ---- 7. Frame accents: gold corner brackets for a certificate-style finish ----
+  drawCornerBrackets(ctx, WIDTH, HEIGHT, GOLD_ACCENT);
 }
