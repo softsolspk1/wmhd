@@ -345,7 +345,7 @@ const PosterBuilder: React.FC = () => {
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
                 <ChatBubbleBottomCenterTextIcon className="w-4 h-4 text-rose-500" />
-                Message (Select any or type your own)
+                Message (Select any or Write your own message)
               </label>
               <select
                 value={messageChoice}
