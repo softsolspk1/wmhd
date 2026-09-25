@@ -272,9 +272,11 @@ export async function renderWMHDBanner(canvas: HTMLCanvasElement, data: WMHDBann
   const greenCx = greenX0 + greenW / 2; // 259.75
 
   // Info card (Role / Designation and Organization / Hospital)
+  // Capped to the template's own light-blue placeholder so the card never
+  // grows tall enough to cover the WMHD ribbon emblem baked in just below it.
   const infoY0 = greenY1; // 788
-  const infoY1 = 905;
-  const infoH = infoY1 - infoY0; // 117
+  const infoY1 = 870;
+  const infoH = infoY1 - infoY0; // 82
   const infoRadius = 18;
 
   // 2a. Fill solid base behind card to ensure zero white template leaks
