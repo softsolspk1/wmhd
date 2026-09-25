@@ -147,25 +147,43 @@ function topRoundedRectPath(
   ctx.closePath();
 }
 
+/** Rounded rect with only the bottom corners rounded — matches the info card beneath the name bar. */
+function bottomRoundedRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number
+) {
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x + w, y);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y);
+  ctx.closePath();
+}
+
 function drawPlaceholderAvatar(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
   ctx.save();
-  roundRectPath(ctx, x, y, w, h, 6);
-  ctx.clip();
   const bg = ctx.createLinearGradient(x, y, x + w, y + h);
-  bg.addColorStop(0, "#e4e7f2");
-  bg.addColorStop(1, "#cfd4e6");
+  bg.addColorStop(0, "#e2e8f0");
+  bg.addColorStop(1, "#cbd5e1");
   ctx.fillStyle = bg;
   ctx.fillRect(x, y, w, h);
 
   const cx = x + w / 2;
   const cy = y + h / 2;
-  const r = Math.min(w, h) * 0.5;
-  ctx.fillStyle = "#a6aec7";
+  const r = Math.min(w, h) * 0.45;
+  ctx.fillStyle = "#94a3b8";
   ctx.beginPath();
-  ctx.arc(cx, cy - r * 0.28, r * 0.34, 0, Math.PI * 2);
+  ctx.arc(cx, cy - r * 0.28, r * 0.35, 0, Math.PI * 2);
   ctx.fill();
   ctx.beginPath();
-  ctx.arc(cx, cy + r * 1.0, r * 0.62, Math.PI, 0);
+  ctx.arc(cx, cy + r * 1.0, r * 0.65, Math.PI, 0);
   ctx.fill();
   ctx.restore();
 }
@@ -211,7 +229,6 @@ export async function renderWMHDBanner(canvas: HTMLCanvasElement, data: WMHDBann
   if (!ctx) throw new Error("Unable to obtain 2D canvas context");
 
   const fontFamily = "'Poppins', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-  const NAVY_TEXT = "#1b2f5e";
   // Scale factor for font sizes tuned against a 900px-tall canvas baseline.
   const S = HEIGHT / 900;
 
@@ -235,74 +252,265 @@ export async function renderWMHDBanner(canvas: HTMLCanvasElement, data: WMHDBann
   // ---- 1. Official campaign artwork (headline, pill, logos, tagline, ribbon — all baked in) ----
   ctx.drawImage(template, 0, 0, WIDTH, HEIGHT);
 
-  // ---- 2. Photo card — cut into the template as a plain white, top-rounded region ----
-  const photoX0 = WIDTH * 0.036;
-  const photoX1 = WIDTH * 0.257;
-  const photoY0 = HEIGHT * 0.253;
-  const photoY1 = HEIGHT * 0.575;
-  const photoW = photoX1 - photoX0;
-  const photoH = photoY1 - photoY0;
-  const photoRadius = photoW * 0.05;
+  // ---- 2. Speaker Photo Card Geometry ----
+  // Card bounds precisely tuned to cover the template's placeholder area completely
+  const cardX0 = 54;
+  const cardX1 = 476;
+  const cardW = cardX1 - cardX0; // 422
+  const cardCx = cardX0 + cardW / 2; // 265
+  const photoY0 = 308;
+  const greenY0 = 716;
+  const greenY1 = 788;
+  const greenH = greenY1 - greenY0; // 72
+  const photoH = greenY0 - photoY0; // 408
+  const photoRadius = 18;
 
+  // Green Name bar extends horizontally matching the template's wings
+  const greenX0 = 35.5;
+  const greenX1 = 484;
+  const greenW = greenX1 - greenX0; // 448.5
+  const greenCx = greenX0 + greenW / 2; // 259.75
+
+  // Info card (Role / Designation and Organization / Hospital)
+  const infoY0 = greenY1; // 788
+  const infoY1 = 905;
+  const infoH = infoY1 - infoY0; // 117
+  const infoRadius = 18;
+
+  // 2a. Fill solid base behind card to ensure zero white template leaks
   ctx.save();
-  topRoundedRectPath(ctx, photoX0, photoY0, photoW, photoH, photoRadius);
+  topRoundedRectPath(ctx, cardX0, photoY0, cardW, photoH, photoRadius);
+  ctx.fillStyle = "#1e293b";
+  ctx.fill();
+  ctx.restore();
+
+  // 2b. Draw photo clipped to top-rounded card
+  ctx.save();
+  topRoundedRectPath(ctx, cardX0, photoY0, cardW, photoH, photoRadius);
   ctx.clip();
   if (userImg) {
-    drawCoverImage(ctx, userImg, photoX0, photoY0, photoW, photoH);
+    drawCoverImage(ctx, userImg, cardX0, photoY0, cardW, photoH);
   } else {
-    drawPlaceholderAvatar(ctx, photoX0, photoY0, photoW, photoH);
+    drawPlaceholderAvatar(ctx, cardX0, photoY0, cardW, photoH);
   }
   ctx.restore();
 
-  // ---- 3. Name — white bold text on the green bar directly beneath the photo ----
-  const nameY0 = HEIGHT * 0.579;
-  const nameY1 = HEIGHT * 0.635;
+  // 2c. Proper bordering around the uploaded photo:
+  // Crisp border in the campaign's theme green, matching the name bar directly beneath it
+  ctx.save();
+  topRoundedRectPath(ctx, cardX0, photoY0, cardW, photoH, photoRadius);
+  ctx.strokeStyle = "#73bf39";
+  ctx.lineWidth = 5;
+  ctx.stroke();
+  ctx.restore();
+
+  // ---- 3. Name — crisp vibrant green bar with bold white text directly beneath the photo ----
+  ctx.save();
+  // Drop shadow for green bar to give depth over the background
+  ctx.shadowColor = "rgba(0, 0, 0, 0.4)";
+  ctx.shadowBlur = 10;
+  ctx.shadowOffsetY = 4;
+  const greenGrad = ctx.createLinearGradient(greenX0, greenY0, greenX0, greenY1);
+  greenGrad.addColorStop(0, "#73bf39");
+  greenGrad.addColorStop(1, "#5fa729");
+  ctx.fillStyle = greenGrad;
+  ctx.fillRect(greenX0, greenY0, greenW, greenH);
+  ctx.restore();
+
+  // Highlights and borders on green bar
+  ctx.save();
+  ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
+  ctx.fillRect(greenX0, greenY0, greenW, 1.5);
+  ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
+  ctx.fillRect(greenX0, greenY1 - 1.5, greenW, 1.5);
+  ctx.restore();
+
+  // Name text
   ctx.save();
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = "#ffffff";
+  ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetY = 2;
   const nameText = (data.name.trim() || "Your Name").toUpperCase();
   drawFittedText(
     ctx,
     nameText,
-    photoX0 + photoW / 2,
-    nameY0 + (nameY1 - nameY0) / 2 + 2 * S,
-    photoW - 24 * S,
-    24 * S,
+    greenCx,
+    greenY0 + greenH / 2 + 1,
+    greenW - 36,
+    25 * S,
     "800",
     fontFamily,
-    13 * S
+    14 * S
   );
   ctx.restore();
 
-  // ---- 4. Designation / organization — navy text on the light-blue bar ----
-  const desigY0 = HEIGHT * 0.638;
-  const desigY1 = HEIGHT * 0.7;
+  // ---- 4. Role / Designation and Organization / Hospital Container ----
   ctx.save();
-  ctx.textAlign = "center";
-  ctx.fillStyle = NAVY_TEXT;
-  const desigLines = [data.designation.trim(), data.organization.trim()].filter(Boolean);
-  const desigH = desigY1 - desigY0;
-  if (desigLines.length) {
-    const lineH = desigH / desigLines.length;
-    ctx.textBaseline = "middle";
-    desigLines.forEach((line, i) => {
-      const fs = (i === 0 ? 19 : 17) * S;
-      const weight = i === 0 ? "700" : "500";
-      drawFittedText(
-        ctx,
-        line,
-        photoX0 + photoW / 2,
-        desigY0 + lineH * i + lineH / 2 + 1 * S,
-        photoW - 26 * S,
-        fs,
-        weight,
-        fontFamily,
-        11 * S
-      );
-    });
-  }
+  bottomRoundedRectPath(ctx, cardX0, infoY0, cardW, infoH, infoRadius);
+  const infoGrad = ctx.createLinearGradient(cardX0, infoY0, cardX0, infoY1);
+  infoGrad.addColorStop(0, "#ebf6fd");
+  infoGrad.addColorStop(1, "#d4eefb");
+  ctx.fillStyle = infoGrad;
+  ctx.fill();
+
+  ctx.strokeStyle = "#a4d5ee";
+  ctx.lineWidth = 2;
+  ctx.stroke();
   ctx.restore();
+
+  // 4b. Text formatting and alignment inside Info Container
+  const desigText = data.designation.trim();
+  const orgText = data.organization.trim();
+  const safeTextW = cardW - 32;
+
+  if (desigText && orgText) {
+    // Both Role and Organization are provided
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+
+    // Role / Designation (Title): Bold Navy
+    const desigFontSize = Math.min(22 * S, 25);
+    ctx.font = `700 ${desigFontSize}px ${fontFamily}`;
+    let finalDesig = desigText;
+    let actualDesigFs = desigFontSize;
+    let dWidth = ctx.measureText(finalDesig).width;
+    while (dWidth > safeTextW && actualDesigFs > 14 * S) {
+      actualDesigFs -= 1;
+      ctx.font = `700 ${actualDesigFs}px ${fontFamily}`;
+      dWidth = ctx.measureText(finalDesig).width;
+    }
+    if (dWidth > safeTextW) {
+      while (finalDesig.length > 3 && ctx.measureText(finalDesig + "…").width > safeTextW) {
+        finalDesig = finalDesig.slice(0, -1);
+      }
+      finalDesig += "…";
+    }
+
+    // Organization / Hospital: Multi-line wrapped if long
+    let orgFs = Math.min(16.5 * S, 19);
+    ctx.font = `600 ${orgFs}px ${fontFamily}`;
+    let orgLineH = Math.round(orgFs * 1.25);
+
+    const buildOrgLines = (fs: number) => {
+      ctx.font = `600 ${fs}px ${fontFamily}`;
+      const words = orgText.split(/\s+/).filter(Boolean);
+      const lines: string[] = [];
+      let cur = "";
+      for (const w of words) {
+        const cand = cur ? `${cur} ${w}` : w;
+        if (!cur || ctx.measureText(cand).width <= safeTextW) {
+          cur = cand;
+        } else {
+          lines.push(cur);
+          cur = w;
+        }
+      }
+      if (cur) lines.push(cur);
+      return lines;
+    };
+
+    let orgLines = buildOrgLines(orgFs);
+    if (orgLines.length > 2 && orgFs > 13 * S) {
+      orgFs -= 1.5;
+      orgLineH = Math.round(orgFs * 1.22);
+      orgLines = buildOrgLines(orgFs);
+    }
+    if (orgLines.length > 2) {
+      orgLines = orgLines.slice(0, 2);
+      let last = orgLines[1];
+      ctx.font = `600 ${orgFs}px ${fontFamily}`;
+      while (last.length > 3 && ctx.measureText(last + "…").width > safeTextW) {
+        last = last.slice(0, -1);
+      }
+      orgLines[1] = last.trimEnd() + "…";
+    }
+
+    // Vertically center the entire block inside infoH
+    const spacing = 7;
+    const dividerH = 1;
+    const totalBlockH = actualDesigFs + spacing + dividerH + spacing + orgLines.length * orgLineH;
+    const startY = infoY0 + (infoH - totalBlockH) / 2 + actualDesigFs * 0.85;
+
+    // Draw Role
+    ctx.fillStyle = "#0e2855";
+    ctx.font = `700 ${actualDesigFs}px ${fontFamily}`;
+    ctx.fillText(finalDesig, cardCx, startY);
+
+    // Draw subtle divider
+    const divY = startY + spacing;
+    const divW = Math.min(safeTextW * 0.72, 250);
+    ctx.strokeStyle = "rgba(164, 213, 238, 0.8)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cardCx - divW / 2, divY);
+    ctx.lineTo(cardCx + divW / 2, divY);
+    ctx.stroke();
+
+    // Draw Organization lines
+    ctx.fillStyle = "#223f72";
+    ctx.font = `600 ${orgFs}px ${fontFamily}`;
+    let lineY = divY + spacing + orgFs * 0.82;
+    for (const line of orgLines) {
+      let disp = line;
+      if (ctx.measureText(disp).width > safeTextW) {
+        while (disp.length > 3 && ctx.measureText(disp + "…").width > safeTextW) {
+          disp = disp.slice(0, -1);
+        }
+        disp += "…";
+      }
+      ctx.fillText(disp, cardCx, lineY);
+      lineY += orgLineH;
+    }
+    ctx.restore();
+  } else if (desigText || orgText) {
+    // Single field provided
+    const singleText = desigText || orgText;
+    const isDesig = Boolean(desigText);
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#0e2855";
+
+    const baseFs = (isDesig ? 21 : 18) * S;
+    ctx.font = `${isDesig ? "700" : "600"} ${baseFs}px ${fontFamily}`;
+
+    if (ctx.measureText(singleText).width <= safeTextW) {
+      ctx.fillText(singleText, cardCx, infoY0 + infoH / 2);
+    } else {
+      const words = singleText.split(/\s+/).filter(Boolean);
+      const lines: string[] = [];
+      let cur = "";
+      for (const w of words) {
+        const cand = cur ? `${cur} ${w}` : w;
+        if (!cur || ctx.measureText(cand).width <= safeTextW) {
+          cur = cand;
+        } else {
+          lines.push(cur);
+          cur = w;
+        }
+      }
+      if (cur) lines.push(cur);
+      const lineH = Math.round(baseFs * 1.25);
+      const totalH = lines.slice(0, 2).length * lineH;
+      let y = infoY0 + (infoH - totalH) / 2 + lineH / 2;
+      for (const l of lines.slice(0, 2)) {
+        let disp = l;
+        if (ctx.measureText(disp).width > safeTextW) {
+          while (disp.length > 3 && ctx.measureText(disp + "…").width > safeTextW) {
+            disp = disp.slice(0, -1);
+          }
+          disp += "…";
+        }
+        ctx.fillText(disp, cardCx, y);
+        y += lineH;
+      }
+    }
+    ctx.restore();
+  }
 
   // ---- 5. Quote — centered inside the speech bubble cut into the template ----
   // Box is inset from the bubble's measured white region to clear its rounded

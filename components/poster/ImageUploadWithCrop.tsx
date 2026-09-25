@@ -225,12 +225,6 @@ export const ImageUploadWithCrop: React.FC<ImageUploadWithCropProps> = ({
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
 
-    // Fill with white first so any (in practice, near-zero) rounding gap at
-    // the edges matches the banner's white card background instead of
-    // rendering as a transparent/checkered seam.
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, exportWidth, exportHeight);
-
     // Calculate mapping from displayed image coordinates to source image natural coordinates
     const naturalW = imgRef.current.naturalWidth;
     const naturalH = imgRef.current.naturalHeight;
